@@ -2,15 +2,15 @@ using Hangfire;
 using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using SC_DataSimulator;
 using SC_DataSimulator.DAL;
 using SC_DataSimulator.DomainModels;
-using SC_DataSimulator.Services;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+
+const string AuthScheme = "cookie";
 
 builder.Services.AddLogging(loggingBuilder =>
 {
@@ -25,6 +25,7 @@ builder.Services.AddHangfire(config =>
 builder.Services.AddTransient<DataGenerationJob>();
 builder.Services.AddTransient<AppDbContext>();
 builder.Services.AddTransient<IDriverActivity, DriverActivity>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddCors(options =>
 {
@@ -44,7 +45,8 @@ builder.Services
 
 builder.Services.AddSignalR();
 
-builder.Services.AddScoped<AuthService>();
+builder.Services.AddAuthentication(AuthScheme)
+    .AddCookie(AuthScheme);
 
 var app = builder.Build();
 
@@ -102,7 +104,11 @@ app.MapGet("/totalhourswithtype", (IServiceProvider serviceProvider) =>
     return totalHoursWithType;
 });
 
-app.MapPost("/login", async (IUserRepository userRepository, [FromBody] UserLogIn loginDto) =>
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+app.MapPost("/login", async (HttpContext ctx, IUserRepository userRepository, [FromBody] UserLogIn loginDto) =>
 {
     if (string.IsNullOrEmpty(loginDto.Name) || string.IsNullOrEmpty(loginDto.Password))
     {
@@ -127,40 +133,14 @@ app.MapPost("/login", async (IUserRepository userRepository, [FromBody] UserLogI
 
     var principal = new ClaimsPrincipal(identity);
 
-    // await HttpContext.SingInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-    //    principal,
-    //    new AuthenticationProperties { IsPersistent = user.RememberLogin });
+    await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+       principal,
+       new AuthenticationProperties { IsPersistent = user.RememberLogin });
 
     return "Authenticated";
 
 });
 
-// Auth APIs
-
-app.MapGet("/username", (HttpContext ctx, IDataProtectionProvider idp) =>
-{
-    var protector = idp.CreateProtector("auth-cookie");
-
-    var authCookie = ctx.Request.Headers.Cookie.FirstOrDefault(x => x.StartsWith("auth="));
-    var protectedPayload = authCookie.Split("=").Last();
-    var payload = protector.Unprotect(protectedPayload);
-    var parts = payload.Split(':');
-    var key = parts[0];
-    var value = parts[1];
-
-    return value;
-});
-
-app.MapGet("/login", (AuthService auth) =>
-{
-    auth.SignIn();
-
-    return "ok";
-});
-
-app.UseAuthentication();
-
-app.UseAuthorization();
 
 app.UseCors("CorsPolicy");
 
