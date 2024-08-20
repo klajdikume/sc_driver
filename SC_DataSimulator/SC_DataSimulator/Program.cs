@@ -141,7 +141,6 @@ app.MapPost("/login", async (HttpContext ctx, IUserRepository userRepository, [F
 
 });
 
-
 app.UseCors("CorsPolicy");
 
 app.MapHub<DriverHub>("/drivers").RequireCors("CorsPolicy");
