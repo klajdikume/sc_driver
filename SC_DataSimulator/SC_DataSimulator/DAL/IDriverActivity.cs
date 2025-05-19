@@ -11,6 +11,7 @@ namespace SC_DataSimulator.DAL
         public void AddActivity(Activity activity);
         public int ActivityCount();
         public List<DriverSingleViolation> DriversSingleDriveViolation();
+        public DriverSingleViolation LatestDriverSingleViolation();
         public List<TotalHoursType> TotalDriveHoursTypes();
         public List<Driver> GetAllDrivers();
     }

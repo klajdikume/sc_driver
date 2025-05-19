@@ -12,15 +12,18 @@ namespace SC_DataSimulator
     {
         private readonly ILogger<DataGenerationJob> _logger;
         private readonly IDriverActivity _driverActivity;
-        private readonly IHubContext<DriverHub> _hubContext;
+        // private readonly IHubContext<DriverHub> _hubContext;
         private static readonly Random random = new Random();
         private static string[] activityTypes = { "Driving", "Resting" };
+        private readonly DriverHub _driverService;
 
-        public DataGenerationJob(ILogger<DataGenerationJob> logger, IDriverActivity driverActivity, IHubContext<DriverHub> hubContext)
+        public DataGenerationJob(ILogger<DataGenerationJob> logger,
+            IDriverActivity driverActivity,
+            DriverHub hubContext)
         {
             _logger = logger;
             _driverActivity = driverActivity;
-            _hubContext = hubContext;
+            _driverService = hubContext;
         }
 
         private static string GetRandomActivityType()
@@ -34,28 +37,33 @@ namespace SC_DataSimulator
 
             if(!_driverActivity.ReachedMaxToday())
             {
+                var date = DateTime.Now + TimeSpan.FromHours(random.Next(1, 8));
+
                 var activity = new Activity
                 {
                     Type = GetRandomActivityType(),
-                    DriverId = 1,
+                    DriverId = random.Next(1, 3),
                     Date = new DateTime(2024, 04, 09),
                     Start = DateTime.Now + TimeSpan.FromHours(random.Next(1, 4)),
                     End = DateTime.Now + TimeSpan.FromHours(random.Next(1, 4)),
                 };
 
-                activity.End = activity.End > activity.Start ? activity.End : activity.Start.AddHours(random.Next(1, 8));
+                activity.End = activity.End > activity.Start ? 
+                    activity.End.AddHours(random.Next(1, 4)) : activity.Start.AddHours(random.Next(9, 15));
 
                 // TODO:
                 // check the constraint of overlap possibility
 
                 _driverActivity.AddActivity(activity);
 
-                DriverDashboard driverDashboard = new DriverDashboard(); 
-                driverDashboard.DriverSingleViolation = _driverActivity.DriversSingleDriveViolation();
-                driverDashboard.TotalHours = _driverActivity.TotalDriveHoursTypes();
-                // Driverswithviolations
+                List<TotalHoursType> totalHoursTypes = _driverActivity.TotalDriveHoursTypes();
 
-                await _hubContext.Clients.All.SendAsync("DriverUpdated", driverDashboard);
+                await _driverService.ActivityUpdated(totalHoursTypes);
+
+                DriverSingleViolation singleDriveTime = _driverActivity.LatestDriverSingleViolation();
+
+
+                await _driverService.SingleDriveTimeViolation(singleDriveTime);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1)); 

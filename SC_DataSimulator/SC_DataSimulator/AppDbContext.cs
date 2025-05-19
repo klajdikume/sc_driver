@@ -1,8 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+﻿using System.Data;
 using Npgsql;
 using SC_DataSimulator.Models;
-using System.Data;
 
 namespace SC_DataSimulator
 {
