@@ -1,4 +1,5 @@
-﻿using Dapper;
+﻿using System.Collections.Generic;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using SC_DataSimulator.DomainModels;
 using SC_DataSimulator.Models;
@@ -48,7 +49,7 @@ namespace SC_DataSimulator.DAL
             var conn = _dbContext.CreateConnection();
             conn.Open();
 
-            string sql = "INSERT INTO tachograph.driver (\"Name\") VALUES (@name)";
+            string sql = "INSERT INTO tachograph.driver (\"Name\") VALUES ('Driver A'), ('Driver B'), ('Driver C');";
 
             conn.Execute(sql, name);
 
@@ -73,16 +74,49 @@ namespace SC_DataSimulator.DAL
             var conn = _dbContext.CreateConnection();
             conn.Open();
 
-            string sql = "SELECT EXTRACT(HOUR FROM (\"End\" - \"Start\")) AS DriveTime, \"d\".\"Id\", \"d\".\"name\" " +
-                "FROM tachograph.activity ac join tachograph.driver d on \"ac\".\"DriverId\" = \"d\".\"Id\" WHERE \"ac\".\"Type\" LIKE '%Driving%' ";
+            string sql = @"
+                            SELECT 
+                                CAST(EXTRACT(HOUR FROM (ac.""End"" - ac.""Start"")) AS INTEGER) AS DriveTime,
+                                d.""Id"",
+                                d.""name"",
+                                ac.""Start"",
+                                ac.""End"",
+                                ac.""Date""
+                            FROM tachograph.activity ac
+                            JOIN tachograph.driver d ON ac.""DriverId"" = d.""Id""
+                            WHERE ac.""Type"" LIKE '%Driving%'";
 
-            var drivers = conn.Query<DriverSingleViolation>(sql).Where(d => d.DriveTime > 3).DistinctBy(driver => driver.Name).ToList();
-
+            var drivers = conn.Query<DriverSingleViolation>(sql).Where(d => d.DriveTime >= 4).DistinctBy(driver => driver.Name).ToList();
+            
             conn.Close();
 
             return drivers;
         }
-    
+
+        public DriverSingleViolation? LatestDriverSingleViolation()
+        {
+            using var conn = _dbContext.CreateConnection();
+            conn.Open();
+
+            string sql = @"
+                SELECT 
+                    EXTRACT(HOUR FROM (""End"" - ""Start"")) AS DriveTime,
+                    d.""Id"",
+                    d.""name"" AS Name,
+                    ac.""Start"", ac.""End"", ac.""Date""
+                FROM tachograph.activity ac
+                JOIN tachograph.driver d ON ac.""DriverId"" = d.""Id""
+                WHERE ac.""Type"" LIKE '%Driving%'
+                AND (""End"" - ""Start"") >= 4 '4 hours'
+                ORDER BY ac.""End"" DESC
+                LIMIT 1";
+
+            var violation = conn.QueryFirstOrDefault<DriverSingleViolation>(sql);
+
+            conn.Close();
+            return violation;
+        }
+
         public List<TotalHoursType> TotalDriveHoursTypes()
         {
             var conn = _dbContext.CreateConnection();

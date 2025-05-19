@@ -18,7 +18,7 @@ namespace SC_DataSimulator.DAL
 
         public async Task<User?> CheckUserData(UserLogIn userLogIn)
         {
-            // var hashedPassword = ComputeSha256Hash(userLogIn.Password);
+            var hashedPassword = ComputeSha256Hash(userLogIn.Password);
 
             var conn = _dbContext.CreateConnection();
 

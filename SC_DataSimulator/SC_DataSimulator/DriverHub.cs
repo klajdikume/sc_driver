@@ -1,18 +1,26 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using SC_DataSimulator.DomainModels;
 using SC_DataSimulator.Models;
 
 namespace SC_DataSimulator
 {
     public class DriverHub : Hub
     {
-        public override async Task OnConnectedAsync()
+        private readonly IHubContext<DriverHub> _hubContext;
+
+        public DriverHub(IHubContext<DriverHub> hubContext)
         {
-            await Clients.All.SendAsync("DriverUpdated", $"{Context.ConnectionId}");
+            _hubContext = hubContext;
         }
 
-        public async Task DriverUpdated(Activity activity)
+        public async Task ActivityUpdated(List<TotalHoursType> totalHoursTypes)
         {
-            await Clients.All.SendAsync("DriverUpdated", activity);
+            await _hubContext.Clients.All.SendAsync("ActivityUpdated", totalHoursTypes);
+        }
+
+        public async Task SingleDriveTimeViolation(DriverSingleViolation driverSingleViolation)
+        {
+            await _hubContext.Clients.All.SendAsync("SingeDriveTimeViolation", driverSingleViolation);
         }
     }
 }

@@ -44,6 +44,7 @@ builder.Services
     .AddCookie();
 
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<DriverHub>();
 
 builder.Services.AddAuthentication(AuthScheme)
     .AddCookie(AuthScheme);
@@ -62,9 +63,10 @@ app.MapGet("/seed", (IDriverActivity drivers) =>
     if (existdrivers)
     {
         drivers.AddDriver("Driver A");
+        return "Drivers seeded";
     }
 
-    return "Drivers seeded";
+    return "There are existing Drivers";
 });
 
 app.MapGet("/startdatageneration", (IServiceProvider serviceProvider) =>
@@ -102,6 +104,14 @@ app.MapGet("/totalhourswithtype", (IServiceProvider serviceProvider) =>
     var totalHoursWithType = driver.TotalDriveHoursTypes();
 
     return totalHoursWithType;
+});
+
+app.MapGet("/singledriveviolation", (IServiceProvider serviceProvider) =>
+{
+    var driver = serviceProvider.GetRequiredService<IDriverActivity>();
+    var singledriveviolation = driver.DriversSingleDriveViolation();
+
+    return singledriveviolation;
 });
 
 app.UseAuthentication();
